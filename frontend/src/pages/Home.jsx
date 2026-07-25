@@ -15,7 +15,7 @@ const Home = ({ user }) => {
   const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Dessert', 'Beverages'];
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/recipes')
+    fetch('https://recipe-finder-backend-m8q2.onrender.com/api/recipes')
       .then((res) => res.json())
       .then((data) => {
         setRecipes(Array.isArray(data) ? data : []);
@@ -29,7 +29,7 @@ const Home = ({ user }) => {
 
   useEffect(() => {
     if (user && user.email) {
-      fetch(`http://localhost:5000/api/users/${user.email}/favorites`)
+      fetch(`https://recipe-finder-backend-m8q2.onrender.com/api/users/${user.email}/favorites`)
         .then((res) => res.json())
         .then((data) => setFavorites(Array.isArray(data) ? data : []))
         .catch((err) => console.error(err));
@@ -46,7 +46,7 @@ const Home = ({ user }) => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/users/favorites/toggle', {
+      const response = await fetch('https://recipe-finder-backend-m8q2.onrender.com/api/users/favorites/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, recipeId }),
@@ -120,7 +120,7 @@ const Home = ({ user }) => {
         </div>
       </div>
 
-      {/* Stats Counter Row (Updated: Avg Cook Time Deleted) */}
+      {/* Stats Counter Row */}
       <div className="stats-card">
         <div className="stat-item">
           <div className="stat-number">{recipes.length}+</div>

@@ -13,13 +13,13 @@ const AddRecipe = () => {
   });
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.value]: e.target.value });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await fetch('http://localhost:5000/api/recipes', {
+      await fetch('https://recipe-finder-backend-m8q2.onrender.com/api/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),

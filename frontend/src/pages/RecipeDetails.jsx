@@ -8,7 +8,7 @@ const RecipeDetails = () => {
   const [checkedIngredients, setCheckedIngredients] = useState({});
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/recipes/${id}`)
+    fetch(`https://recipe-finder-backend-m8q2.onrender.com/api/recipes/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setRecipe(data);

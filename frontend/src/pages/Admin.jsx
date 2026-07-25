@@ -12,7 +12,7 @@ const AdminDashboard = () => {
 
   const fetchRecipes = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/recipes');
+      const response = await fetch('https://recipe-finder-backend-m8q2.onrender.com/api/recipes');
       const data = await response.json();
       setRecipes(data);
       setLoading(false);
@@ -26,7 +26,7 @@ const AdminDashboard = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this recipe?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/recipes/${id}`, {
+        const response = await fetch(`https://recipe-finder-backend-m8q2.onrender.com/api/recipes/${id}`, {
           method: 'DELETE',
         });
 

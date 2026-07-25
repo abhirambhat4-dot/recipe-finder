@@ -14,7 +14,7 @@ const EditRecipe = () => {
   });
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/recipes/${id}`)
+    fetch(`https://recipe-finder-backend-m8q2.onrender.com/api/recipes/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setFormData({
@@ -40,7 +40,7 @@ const EditRecipe = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`http://localhost:5000/api/recipes/${id}`, {
+      await fetch(`https://recipe-finder-backend-m8q2.onrender.com/api/recipes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
