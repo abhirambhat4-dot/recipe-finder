@@ -1,110 +1,138 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
 const EditRecipe = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [formData, setFormData] = useState({
-        name: '',
-        image: '',
-        ingredients: '',
-        steps: '',
-        cookTime: '',
-        category: ''
-    });
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    title: '',
+    image: '',
+    ingredients: '',
+    instructions: '',
+    cookingTime: '',
+    category: 'Breakfast',
+  });
 
-    useEffect(() => {
-        const fetchRecipe = async () => {
-            try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`);
-                const recipe = res.data;
-                setFormData({
-                    name: recipe.name,
-                    image: recipe.image,
-                    ingredients: recipe.ingredients.join(', '),
-                    steps: recipe.steps.join(', '),
-                    cookTime: recipe.cookTime,
-                    category: recipe.category
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        };
-        fetchRecipe();
-    }, [id]);
+  useEffect(() => {
+    fetch(`http://localhost:5000/api/recipes/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setFormData({
+          title: data.name || data.title || '',
+          image: data.image || '',
+          ingredients: Array.isArray(data.ingredients)
+            ? data.ingredients.join(', ')
+            : data.ingredients || '',
+          instructions: Array.isArray(data.instructions)
+            ? data.instructions.join('\n')
+            : data.instructions || '',
+          cookingTime: data.cookingTime || data.cookTime || data.prepTime || '',
+          category: data.category || 'Breakfast',
+        });
+      })
+      .catch((err) => console.error('Error fetching recipe:', err));
+  }, [id]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const processedData = {
-            ...formData,
-            ingredients: formData.ingredients.split(',').map(i => i.trim()),
-            steps: formData.steps.split(',').map(s => s.trim())
-        };
-        try {
-            await axios.put(`${import.meta.env.VITE_API_URL}/api/recipes/${id}`, processedData);
-            navigate('/admin');
-        } catch (err) {
-            console.error(err);
-        }
-    };
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-    return (
-        <div className="form-wrapper">
-            <h2>Edit Recipe</h2>
-            <form className="recipe-form" onSubmit={handleSubmit}>
-                <input 
-                    type="text" 
-                    placeholder="Recipe Name" 
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    required
-                />
-                <input 
-                    type="text" 
-                    placeholder="Image URL" 
-                    value={formData.image}
-                    onChange={(e) => setFormData({...formData, image: e.target.value})}
-                    required
-                />
-                <textarea 
-                    placeholder="Ingredients (separated by commas)" 
-                    value={formData.ingredients}
-                    onChange={(e) => setFormData({...formData, ingredients: e.target.value})}
-                    required
-                ></textarea>
-                <textarea 
-                    placeholder="Steps (separated by commas)" 
-                    value={formData.steps}
-                    onChange={(e) => setFormData({...formData, steps: e.target.value})}
-                    required
-                ></textarea>
-                <input 
-                    type="text" 
-                    placeholder="Cook Time (e.g., 20 mins)" 
-                    value={formData.cookTime}
-                    onChange={(e) => setFormData({...formData, cookTime: e.target.value})}
-                    required
-                />
-                <select 
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    required
-                >
-                    <option value="">Select Category</option>
-                    <option value="Breakfast">Breakfast</option>
-                    <option value="Lunch">Lunch</option>
-                    <option value="Dinner">Dinner</option>
-                    <option value="Snacks">Snacks</option>
-                    <option value="Dessert">Dessert</option>
-                    <option value="Beverages">Beverages</option>
-                </select>
-                <button type="submit" className="nav-box-btn" style={{ backgroundColor: '#ff9800', color: '#000' }}>
-                    Update
-                </button>
-            </form>
-        </div>
-    );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await fetch(`http://localhost:5000/api/recipes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          name: formData.title, // Save under both name and title for compatibility
+        }),
+      });
+      navigate('/admin');
+    } catch (err) {
+      console.error('Error updating recipe:', err);
+    }
+  };
+
+  return (
+    <div className="form-wrapper">
+      <h2>Edit Recipe</h2>
+      <form onSubmit={handleSubmit} className="recipe-form">
+        <label>
+          Recipe Title
+          <input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Image URL
+          <input
+            type="text"
+            name="image"
+            value={formData.image}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Ingredients (separated by commas)
+          <textarea
+            name="ingredients"
+            value={formData.ingredients}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Instructions
+          <textarea
+            name="instructions"
+            value={formData.instructions}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Cooking Time (in minutes)
+          <input
+            type="text"
+            name="cookingTime"
+            value={formData.cookingTime}
+            onChange={handleChange}
+            required
+          />
+        </label>
+
+        <label>
+          Category
+          <select
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+          >
+            <option value="Breakfast">Breakfast</option>
+            <option value="Lunch">Lunch</option>
+            <option value="Dinner">Dinner</option>
+            <option value="Snacks">Snacks</option>
+            <option value="Dessert">Dessert</option>
+            <option value="Beverages">Beverages</option>
+          </select>
+        </label>
+
+        <button type="submit" className="btn-submit-form">
+          Update Recipe
+        </button>
+      </form>
+    </div>
+  );
 };
 
 export default EditRecipe;

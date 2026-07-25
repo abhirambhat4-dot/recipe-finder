@@ -1,156 +1,202 @@
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import SearchBar from '../components/SearchBar';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import RecipeCard from '../components/RecipeCard';
 
-const Home = () => {
-    const [recipes, setRecipes] = useState([]);
-    const [search, setSearch] = useState('');
-    const [category, setCategory] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [sortBy, setSortBy] = useState(''); 
-    const [currentPage, setCurrentPage] = useState(1);
-    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-    const [favoriteIds, setFavoriteIds] = useState([]);
-    const recipesPerPage = 8; 
+const Home = ({ user }) => {
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortBy, setSortBy] = useState('Default');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchRecipes = async () => {
-            setLoading(true);
-            try {
-               let url = `${import.meta.env.VITE_API_URL}/api/recipes`;
-                if (category) {
-                    url = `${import.meta.env.VITE_API_URL}/api/recipes/category/${category}`;
-                } else if (search) {
-                    url = `${import.meta.env.VITE_API_URL}/api/recipes/search?name=${search}`;
-                }
-                const res = await axios.get(url);
-                setRecipes(res.data);
-                setCurrentPage(1); 
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchRecipes();
-        
-        const saved = JSON.parse(localStorage.getItem('recipeFavorites')) || [];
-        setFavoriteIds(saved);
-    }, [search, category]);
+  const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Dessert', 'Beverages'];
 
-    const handleFavoriteToggle = () => {
-        const saved = JSON.parse(localStorage.getItem('recipeFavorites')) || [];
-        setFavoriteIds(saved);
-        setShowFavoritesOnly(!showFavoritesOnly);
-        setCurrentPage(1);
-    };
+  useEffect(() => {
+    fetch('http://localhost:5000/api/recipes')
+      .then((res) => res.json())
+      .then((data) => {
+        setRecipes(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
 
-    const parseCookTime = (timeStr) => {
-        const num = parseInt(timeStr);
-        if (isNaN(num)) return 0;
-        if (timeStr.toLowerCase().includes('hr') || timeStr.toLowerCase().includes('hour')) {
-            return num * 60;
-        }
-        return num;
-    };
+  useEffect(() => {
+    if (user && user.email) {
+      fetch(`http://localhost:5000/api/users/${user.email}/favorites`)
+        .then((res) => res.json())
+        .then((data) => setFavorites(Array.isArray(data) ? data : []))
+        .catch((err) => console.error(err));
+    } else {
+      setFavorites([]);
+    }
+  }, [user]);
 
-    const filteredRecipes = showFavoritesOnly 
-        ? recipes.filter(recipe => favoriteIds.includes(recipe._id))
-        : recipes;
+  const handleToggleFavorite = async (recipeId) => {
+    if (!user) {
+      alert('Please log in to save recipes to your favorites!');
+      navigate('/login');
+      return;
+    }
 
-    const sortedRecipes = [...filteredRecipes].sort((a, b) => {
-        if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
-        if (sortBy === 'name-desc') return b.name.localeCompare(a.name);
-        if (sortBy === 'time-asc') return parseCookTime(a.cookTime) - parseCookTime(b.cookTime);
-        if (sortBy === 'time-desc') return parseCookTime(b.cookTime) - parseCookTime(a.cookTime);
-        return 0; 
+    try {
+      const response = await fetch('http://localhost:5000/api/users/favorites/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, recipeId }),
+      });
+      const updatedFavs = await response.json();
+      setFavorites(updatedFavs);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleExploreClick = (e) => {
+    e.preventDefault();
+    setShowFavoritesOnly(false);
+    document.getElementById('recipes-grid')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleFavoritesClick = () => {
+    if (!user) {
+      alert('Please log in to view your favorites!');
+      navigate('/login');
+      return;
+    }
+    
+    setShowFavoritesOnly(true);
+    
+    setTimeout(() => {
+      document.getElementById('recipes-grid')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  const filteredRecipes = recipes
+    .filter((recipe) => {
+      const titleText = recipe.name || recipe.title || '';
+      const matchesSearch = titleText.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === 'All' || recipe.category === selectedCategory;
+      const matchesFavorite = showFavoritesOnly ? favorites.includes(recipe._id) : true;
+      return matchesSearch && matchesCategory && matchesFavorite;
+    })
+    .sort((a, b) => {
+      const nameA = a.name || a.title || '';
+      const nameB = b.name || b.title || '';
+      const timeA = parseInt(a.cookingTime || a.cookTime || a.prepTime || 0);
+      const timeB = parseInt(b.cookingTime || b.cookTime || b.prepTime || 0);
+
+      if (sortBy === 'TimeAsc') return timeA - timeB;
+      if (sortBy === 'TimeDesc') return timeB - timeA;
+      if (sortBy === 'NameAsc') return nameA.localeCompare(nameB);
+      return 0;
     });
 
-    const indexOfLastRecipe = currentPage * recipesPerPage;
-    const indexOfFirstRecipe = indexOfLastRecipe - recipesPerPage;
-    const currentRecipes = sortedRecipes.slice(indexOfFirstRecipe, indexOfLastRecipe);
-    const totalPages = Math.ceil(sortedRecipes.length / recipesPerPage);
+  const featuredRecipe = recipes.find(r => (r.name || r.title || '').toLowerCase().includes('pizza')) || recipes[0];
 
-    return (
-        <div className="home-container">
-            <SearchBar search={search} setSearch={setSearch} category={category} setCategory={setCategory} />
-            
-            <div className="controls-row">
-                <div>
-                    <label htmlFor="sortSelect" style={{ fontWeight: 'bold' }}>Sort By: </label>
-                    <select 
-                        id="sortSelect"
-                        value={sortBy} 
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="sort-select"
-                    >
-                        <option value="">Default</option>
-                        <option value="name-asc">Alphabetical (A-Z)</option>
-                        <option value="name-desc">Alphabetical (Z-A)</option>
-                        <option value="time-asc">Cooking Time (Low to High)</option>
-                        <option value="time-desc">Cooking Time (High to Low)</option>
-                    </select>
-                </div>
+  if (loading) {
+    return <div style={{ textAlign: 'center', padding: '100px', color: '#fff' }}>Loading Recipes...</div>;
+  }
 
-                <label className="fav-toggle-label">
-                    <input 
-                        type="checkbox" 
-                        checked={showFavoritesOnly} 
-                        onChange={handleFavoriteToggle} 
-                    />
-                    Show My Favorites Only
-                </label>
-
-                <span className="recipe-counter">
-                    Total Recipes Found: {sortedRecipes.length}
-                </span>
-            </div>
-
-            <hr className="divider" />
-
-            {loading ? (
-                <div className="spinner-container">
-                    <div className="spinner"></div>
-                    <p style={{ marginTop: '10px' }}>Fetching Delicious Content...</p>
-                </div>
-            ) : (
-                <>
-                    <div className="recipe-grid">
-                        {currentRecipes.length > 0 ? (
-                            currentRecipes.map(recipe => (
-                                <RecipeCard key={recipe._id} recipe={recipe} />
-                            ))
-                        ) : (
-                            <div className="no-recipes">
-                                <h3>No recipes found matching your criteria.</h3>
-                            </div>
-                        )}
-                    </div>
-
-                    {totalPages > 1 && (
-                        <div className="pagination-container">
-                            <button 
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
-                                className="pagination-btn"
-                            >
-                                Previous
-                            </button>
-                            <span>Page {currentPage} of {totalPages}</span>
-                            <button 
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                className="pagination-btn"
-                            >
-                                Next
-                            </button>
-                        </div>
-                    )}
-                </>
-            )}
+  return (
+    <div className="home-container">
+      {/* Hero Header Section */}
+      <div className="hero-section">
+        <h1 className="hero-title">Your Favourite Recipes, Just a Search Away</h1>
+        <p className="hero-slogan">
+          Craving something specific? Skip the blogs and get straight to the cooking. Type the name of any dish to instantly unlock clear, easy-to-follow instructions and ingredient lists.
+        </p>
+        <div className="hero-actions">
+          <button onClick={handleExploreClick} className="btn-explore">Explore Recipes ↓</button>
+          <button className="btn-favorites" onClick={handleFavoritesClick}>
+            ♡ Favorites ({favorites.length})
+          </button>
         </div>
-    );
+      </div>
+
+      {/* Stats Counter Row (Updated: Avg Cook Time Deleted) */}
+      <div className="stats-card">
+        <div className="stat-item">
+          <div className="stat-number">{recipes.length}+</div>
+          <div className="stat-label">Curated Recipes</div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-number">7</div>
+          <div className="stat-label">Meal Categories</div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-number">100%</div>
+          <div className="stat-label">Chef Verified</div>
+        </div>
+      </div>
+
+      {/* Category Pills Header */}
+      <div className="section-title">Browse By Category</div>
+      <div className="category-pills">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            className={`pill-btn ${selectedCategory === cat ? 'active' : ''}`}
+            onClick={() => setSelectedCategory(cat)}
+          >
+            {cat === 'All' ? 'All Categories' : cat}
+          </button>
+        ))}
+      </div>
+
+      {/* Featured Recipe Banner (Pizza) */}
+      {featuredRecipe && (
+        <div className="featured-card">
+          <img src={featuredRecipe.image} alt={featuredRecipe.name || featuredRecipe.title} className="featured-img" />
+          <div className="featured-content">
+            <span className="featured-tag">MOST FAVORITED RECIPE</span>
+            <span className="section-title" style={{ marginBottom: '5px' }}>{featuredRecipe.category}</span>
+            <h2 className="featured-title">{featuredRecipe.name || featuredRecipe.title}</h2>
+            <p className="featured-desc">{featuredRecipe.description || 'Classic crispy crust topped with fresh mozzarella, tomato sauce, and basil leaves.'}</p>
+            <div className="featured-meta">⏱️ {featuredRecipe.cookingTime || featuredRecipe.cookTime || featuredRecipe.prepTime || '20 mins'}</div>
+            <Link to={`/recipe/${featuredRecipe._id}`} className="btn-explore" style={{ width: 'fit-content' }}>
+              View Featured Recipe →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Search and Filters */}
+      <div className="controls-row" id="recipes-grid">
+        <input
+          type="text"
+          placeholder="Search by recipe title or ingredient..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
+        />
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="sort-select">
+          <option value="Default">Sort: Newest</option>
+          <option value="TimeAsc">Sort: Time (Low to High)</option>
+          <option value="TimeDesc">Sort: Time (High to Low)</option>
+          <option value="NameAsc">Sort: Name (A-Z)</option>
+        </select>
+      </div>
+
+      {/* Recipes Cards Grid */}
+      <div className="recipe-grid">
+        {filteredRecipes.map((recipe) => (
+          <RecipeCard
+            key={recipe._id}
+            recipe={recipe}
+            isFavorite={favorites.includes(recipe._id)}
+            onToggleFavorite={handleToggleFavorite}
+          />
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default Home;
